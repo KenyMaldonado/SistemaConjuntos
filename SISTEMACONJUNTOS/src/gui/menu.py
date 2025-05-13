@@ -133,51 +133,97 @@ class Menu:
             self.top_input.destroy()
             self.top_input = None
 
-        # --- Nueva ventana para ingresar el Universo ---
-        top_universo_inicial = tk.Toplevel(self.root, bg='#2E3440')
-        top_universo_inicial.title("Ingresar Conjunto Universo")
-        top_universo_inicial.grab_set()
+        self._crear_campos_conjuntos(cantidad)
 
-        ttk.Label(top_universo_inicial, text="Ingrese los elementos del Conjunto Universo (separados por comas):", style='TLabel').pack(pady=10)
-        entry_universo_inicial = ttk.Entry(top_universo_inicial, width=50)
-        entry_universo_inicial.pack(pady=5, padx=10)
-        btn_guardar_universo_inicial = ttk.Button(top_universo_inicial, text="Guardar Universo",
-                                                 command=lambda: self._guardar_universo_inicial(entry_universo_inicial,
-                                                                                                  top_universo_inicial,
-                                                                                                  cantidad))
-        btn_guardar_universo_inicial.pack(pady=10)
-        self.root.wait_window(top_universo_inicial)
-
-    def _guardar_universo_inicial(self, entry, window, cantidad_conjuntos):
-        elementos_str = entry.get()
-        elementos_lista = [elem.strip() for elem in elementos_str.split(',') if elem.strip()]
-        self.universo = set(elementos_lista)  # Guardar como elementos individuales
-        print("Universo guardado:", self.universo)
-        window.destroy()
-        self._crear_campos_conjuntos(cantidad_conjuntos)
-        
-    def _crear_campos_conjuntos(self, cantidad):
+    def _crear_campos_conjuntos(self, cantidad_inicial=2):
         self.top_input = tk.Toplevel(self.root, bg='#2E3440')
         self.top_input.title("Ingresar Datos de Conjuntos")
         self.top_input.grab_set()
 
-        universo_texto = ""
-        if self.universo:
-            universo_texto = ", ".join(sorted(list(self.universo)))
+        self.frame_conjuntos = {}
+        self.conjuntos_data = {}
+        self.cantidad_var = tk.IntVar(value=0) # Para controlar la cantidad actual de conjuntos
+        self.cantidad_var.set(0)
+        self.frame_principal_conjuntos = ttk.Frame(self.top_input)
+        self.frame_principal_conjuntos.pack(pady=5, padx=10, fill='both', expand=True)
+        self.canvas_conjuntos = tk.Canvas(self.frame_principal_conjuntos, bg='#2E3440', highlightthickness=0)
+        self.scrollbar_conjuntos = ttk.Scrollbar(self.frame_principal_conjuntos, orient=tk.VERTICAL, command=self.canvas_conjuntos.yview)
+        self.scrollable_frame_conjuntos = ttk.Frame(self.canvas_conjuntos, style='TFrame')
 
-        universo_label = ttk.Label(self.top_input, text=f"Conjunto Universo: { {universo_texto} }", style='TLabel')
-        universo_label.pack(pady=10)
+        self.canvas_conjuntos.configure(yscrollcommand=self.scrollbar_conjuntos.set)
+        self.scrollable_frame_conjuntos.bind("<Configure>", lambda e: self.canvas_conjuntos.configure(scrollregion=self.canvas_conjuntos.bbox("all")))
+        self.canvas_conjuntos.create_window((0, 0), window=self.scrollable_frame_conjuntos, anchor="nw", width=780) # Ajustar ancho según necesidad
+
+        self.scrollbar_conjuntos.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas_conjuntos.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.botones_eliminar = {} # Para almacenar referencias a los botones de eliminar
+
+        for i in range(cantidad_inicial):
+            self._agregar_campo_conjunto()
+
+        frame_botones = ttk.Frame(self.top_input, style='TFrame')
+        frame_botones.pack(pady=10)
+
+        self.btn_agregar = ttk.Button(frame_botones, text="Agregar Conjunto", command=self._agregar_campo_conjunto)
+        self.btn_agregar.pack(side=tk.LEFT, padx=5)
+
+        self.btn_guardar = ttk.Button(frame_botones, text="Guardar Conjuntos", command=self.guardar_conjuntos, state=tk.DISABLED)
+        self.btn_guardar.pack(side=tk.RIGHT, padx=5)
+
+        self._actualizar_boton_guardar()
+        self.root.wait_window(self.top_input)
+
+    def _crear_campos_conjuntos(self, cantidad_inicial=2):
+        self.top_input = tk.Toplevel(self.root, bg='#2E3440')
+        self.top_input.title("Ingresar Datos de Conjuntos")
+        self.top_input.grab_set()
+
+        self.top_input.geometry("800x600")
 
         self.frame_conjuntos = {}
         self.conjuntos_data = {}
+        self.cantidad_var = tk.IntVar(value=0)
+        self.cantidad_var.set(0)
+        self.frame_principal_conjuntos = ttk.Frame(self.top_input)
+        self.frame_principal_conjuntos.pack(pady=5, padx=10, fill='both', expand=True)
+        self.canvas_conjuntos = tk.Canvas(self.frame_principal_conjuntos, bg='#2E3440', highlightthickness=0)
+        self.scrollbar_conjuntos = ttk.Scrollbar(self.frame_principal_conjuntos, orient=tk.VERTICAL, command=self.canvas_conjuntos.yview)
+        self.scrollable_frame_conjuntos = ttk.Frame(self.canvas_conjuntos, style='TFrame')
 
-        for i in range(cantidad):
-            frame_conjunto = ttk.Frame(self.top_input)
+        self.canvas_conjuntos.configure(yscrollcommand=self.scrollbar_conjuntos.set)
+        self.scrollable_frame_conjuntos.bind("<Configure>", lambda e: self.canvas_conjuntos.configure(scrollregion=self.canvas_conjuntos.bbox("all")))
+        self.canvas_conjuntos.create_window((0, 0), window=self.scrollable_frame_conjuntos, anchor="nw", width=780)
+
+        self.scrollbar_conjuntos.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas_conjuntos.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.botones_eliminar = {}
+
+        frame_botones = ttk.Frame(self.top_input, style='TFrame')
+        frame_botones.pack(pady=10)
+
+        self.btn_agregar = ttk.Button(frame_botones, text="Agregar Conjunto", command=self._agregar_campo_conjunto)
+        self.btn_agregar.pack(side=tk.LEFT, padx=5)
+
+        self.btn_guardar = ttk.Button(frame_botones, text="Guardar Conjuntos", command=self.guardar_conjuntos, state=tk.DISABLED)
+        self.btn_guardar.pack(side=tk.RIGHT, padx=5)
+
+        for i in range(cantidad_inicial):
+            self._agregar_campo_conjunto()
+
+        self._actualizar_boton_guardar()
+        self.root.wait_window(self.top_input)
+
+    def _agregar_campo_conjunto(self):
+        cantidad_actual = self.cantidad_var.get()
+        if cantidad_actual < 10:
+            frame_conjunto = ttk.Frame(self.scrollable_frame_conjuntos)
             frame_conjunto.pack(pady=5, padx=10, fill='x')
 
             letra_var = tk.StringVar()
             available = self._obtener_letras_disponibles()
-            default_letter = available[0] if available else (self.available_letters[i] if i < len(self.available_letters) else "")
+            default_letter = available[0] if available else (self.available_letters[cantidad_actual] if cantidad_actual < len(self.available_letters) else "")
             letra_var.set(default_letter)
 
             combo_letras = ttk.Combobox(frame_conjunto, textvariable=letra_var, values=sorted(self.available_letters), width=3)
@@ -185,39 +231,58 @@ class Menu:
             combo_letras.bind("<<ComboboxSelected>>", self._validar_letras_duplicadas)
             combo_letras.bind("<FocusOut>", self._validar_letras_duplicadas)
 
-            ttk.Label(frame_conjunto, text=" = {", width=4, anchor='w').pack(side='left')
+            ttk.Label(frame_conjunto, text=" = {", width=4, anchor='w', style='TLabel').pack(side='left')
 
             entry = ttk.Entry(frame_conjunto, width=40)
             entry.pack(side='left', expand=True)
-            entry.bind("<FocusOut>", self._validar_elementos_en_universo) # Validar al salir del campo
             entry.bind("<FocusOut>", self._ordenar_elementos)
             entry.bind("<Return>", self._ordenar_elementos)
-            entry.bind("<Return>", self._validar_elementos_en_universo) # Validar al presionar Enter
-            entry.bind("<FocusOut>", self._validar_cantidad_elementos) # Validar cantidad al salir
-            entry.bind("<Return>", self._validar_cantidad_elementos) # Validar cantidad al presionar Enter
+            entry.bind("<FocusOut>", self._validar_cantidad_elementos)
+            entry.bind("<Return>", self._validar_cantidad_elementos)
 
-            ttk.Label(frame_conjunto, text="}").pack(side='left')
+            ttk.Label(frame_conjunto, text="}", style='TLabel').pack(side='left')
+
+            btn_eliminar = ttk.Button(frame_conjunto, text="Eliminar", command=lambda f=frame_conjunto: self._eliminar_campo_conjunto(f))
+            btn_eliminar.pack(side=tk.LEFT, padx=5)
+            self.botones_eliminar[frame_conjunto] = btn_eliminar
 
             self.frame_conjuntos[frame_conjunto] = (letra_var, entry, combo_letras)
             self.conjuntos_data[letra_var.get()] = set()
+            self.cantidad_var.set(self.cantidad_var.get() + 1)
+            self._actualizar_boton_guardar()
 
-        self.btn_guardar = ttk.Button(self.top_input, text="Guardar Conjuntos", command=self.guardar_conjuntos, state=tk.DISABLED)
-        self.btn_guardar.pack(pady=10)
-        self._actualizar_boton_guardar()
-        self.root.wait_window(self.top_input)
+    def _eliminar_campo_conjunto(self, frame_a_eliminar):
+        if self.cantidad_var.get() > 2:
+            if frame_a_eliminar in self.frame_conjuntos:
+                letra_var, _, combo = self.frame_conjuntos.pop(frame_a_eliminar)
+                letra = letra_var.get()
+                if letra in self.conjuntos_data:
+                    del self.conjuntos_data[letra]
+                if frame_a_eliminar in self.botones_eliminar:
+                    self.botones_eliminar.pop(frame_a_eliminar).destroy()
+                frame_a_eliminar.destroy()
+                self.cantidad_var.set(self.cantidad_var.get() - 1)
+                self._actualizar_letras_disponibles()
+                self._validar_letras_duplicadas() # Revalidar duplicados al eliminar
+                self._actualizar_boton_guardar()
 
-    def _obtener_letras_disponibles(self):
+    def _actualizar_letras_disponibles(self):
         used_letters = set([v[0].get() for _, v in self.frame_conjuntos.items()])
-        return sorted([letter for letter in self.available_letters if letter not in used_letters])
+        for frame, (letra_var, _, combo) in self.frame_conjuntos.items():
+            current_letter = letra_var.get()
+            new_values = sorted([letter for letter in self.available_letters if letter not in used_letters or letter == current_letter])
+            combo['values'] = new_values
+            if current_letter not in new_values:
+                letra_var.set(new_values[0] if new_values else "")
 
     def _validar_letras_duplicadas(self, event=None):
         letras = [v[0].get().strip() for _, v in self.frame_conjuntos.items()]
         letras_validas = [l for l in letras if l]
         duplicados = len(letras_validas) != len(set(letras_validas))
-        self._actualizar_boton_guardar(duplicados) # Pasar el estado de duplicados a la función de actualización
+        self._actualizar_boton_guardar(duplicados)
 
     def _actualizar_boton_guardar(self, hay_duplicados=False):
-        num_conjuntos = len(self.frame_conjuntos)
+        num_conjuntos = self.cantidad_var.get()
         letras = [v[0].get().strip() for _, v in self.frame_conjuntos.items()]
         letras_validas = [l for l in letras if l]
         suficientes_conjuntos = num_conjuntos >= 2
@@ -226,6 +291,10 @@ class Menu:
             self.btn_guardar.config(state=tk.NORMAL)
         else:
             self.btn_guardar.config(state=tk.DISABLED)
+
+    def _obtener_letras_disponibles(self):
+        used_letters = set([v[0].get() for _, v in self.frame_conjuntos.items()])
+        return sorted([letter for letter in self.available_letters if letter not in used_letters])
 
     def _ordenar_elementos(self, event):
         entry_widget = event.widget
@@ -257,21 +326,16 @@ class Menu:
     def guardar_conjuntos(self):
         errores = {}
         self.conjuntos = {}
+        elementos_universo = set()
         for frame, (letra_var, entry, _) in self.frame_conjuntos.items():
             letra = letra_var.get()
             elementos_str = entry.get()
             elementos_lista = [elem.strip() for elem in elementos_str.split(',') if elem.strip()]
             elementos_unicos = set(elementos_lista)
+            elementos_universo.update(elementos_unicos) # <--- AQUÍ SE CONSTRUYE EL UNIVERSO
 
             if len(elementos_unicos) > 15:
                 errores[letra] = f"El Conjunto {letra} excede el máximo de 15 elementos ({len(elementos_unicos)})."
-
-            elementos_invalidos = elementos_unicos - self.universo
-            if elementos_invalidos:
-                if letra not in errores:
-                    errores[letra] = ""
-                errores[letra] += f" Contiene elementos no presentes en el Universo: {', '.join(sorted(list(elementos_invalidos)))}."
-                errores[letra] = errores[letra].lstrip()
 
             if len(elementos_lista) != len(elementos_unicos) and elementos_lista:
                 duplicados = [elem for elem in elementos_lista if elementos_lista.count(elem) > 1]
@@ -282,6 +346,8 @@ class Menu:
 
             self.conjuntos[letra] = sorted(list(elementos_unicos))
 
+        self.universo = sorted(list(elementos_universo)) # <--- SE GUARDA EL UNIVERSO CONSTRUIDO
+
         if errores:
             mensaje_error = "Se encontraron los siguientes errores:\n"
             for letra, error in errores.items():
@@ -289,6 +355,7 @@ class Menu:
             tk.messagebox.showerror("Errores al Guardar", mensaje_error)
         else:
             print("Guardando conjuntos:", self.conjuntos)
+            print("Universo automático:", self.universo)
             if self.top_input:
                 self.top_input.destroy()
             self.btn_editar.config(state=tk.NORMAL)
@@ -337,7 +404,7 @@ class Menu:
 
         descripcion_texto = ""
         for letra, conjunto in self.conjuntos.items():
-            descripcion_texto += f"Conjunto {letra}= {', '.join(map(str, conjunto))}\n"
+            descripcion_texto += f"Conjunto {letra} = {{ {', '.join(map(str, conjunto))} }}\n"
 
         texto_descripcion.config(state=tk.NORMAL)
         texto_descripcion.insert(tk.END, descripcion_texto)
@@ -354,43 +421,63 @@ class Menu:
         self.root.mainloop()
 
     def open_operation_window(self):
-        if not self.conjuntos:
-            tk.messagebox.showerror("Error", "Por favor, ingrese los conjuntos primero.")
+        if not self.conjuntos or len(self.conjuntos) < 1:
+            messagebox.showerror("Error", "Debe haber al menos un conjunto ingresado para realizar una operación.")
             return
 
-        top_operacion = tk.Toplevel(self.root, bg='#2E3440') # Fondo de la ventana
-        top_operacion.title("Realizar Operación")
+        self.top_operacion = tk.Toplevel(self.root, bg='#2E3440')
+        self.top_operacion.title("Realizar Operación")
+        self.top_operacion.grab_set()
 
-        letras_conjuntos = sorted(list(self.conjuntos.keys()))
+        letras_conjuntos = sorted(self.conjuntos.keys())
+
+        ttk.Label(self.top_operacion, text="Seleccione el primer conjunto:", style='TLabel').grid(row=0, column=0, padx=10, pady=10, sticky='w')
+        self.combo_conjunto1 = ttk.Combobox(self.top_operacion, values=letras_conjuntos, state='readonly')
+        self.combo_conjunto1.grid(row=0, column=1, padx=10, pady=10, sticky='ew')
+        if letras_conjuntos:
+            self.combo_conjunto1.current(0) # Establecer el primer conjunto por defecto
+
+        ttk.Label(self.top_operacion, text="Seleccione la operación:", style='TLabel').grid(row=1, column=0, padx=10, pady=10, sticky='w')
         operaciones = ["Unión", "Intersección", "Diferencia (A-B)", "Diferencia (B-A)", "Diferencia Simétrica", "Complemento"]
+        self.combo_operacion = ttk.Combobox(self.top_operacion, values=operaciones, state='readonly')
+        self.combo_operacion.grid(row=1, column=1, padx=10, pady=10, sticky='ew')
+        self.combo_operacion.current(0) # Establecer "Unión" por defecto
+        self.combo_operacion.bind("<<ComboboxSelected>>", self.actualizar_segundo_combo)
 
-        ttk.Label(top_operacion, text="Conjunto 1:", style='TLabel').pack(pady=5)
-        combo_conjunto1 = tk.StringVar(top_operacion)
-        combo_conjunto1.set(letras_conjuntos[0] if letras_conjuntos else "")
-        opciones_conjunto1 = ttk.OptionMenu(top_operacion, combo_conjunto1, *letras_conjuntos)
-        opciones_conjunto1.pack(pady=5, padx=10, fill='x')
-        self.combo_conjunto1 = combo_conjunto1 # Guardar referencia si es necesario
+        self.label_conjunto2 = ttk.Label(self.top_operacion, text="Seleccione el segundo conjunto:", style='TLabel')
+        self.label_conjunto2.grid(row=2, column=0, padx=10, pady=10, sticky='w')
+        self.combo_conjunto2 = ttk.Combobox(self.top_operacion, values=letras_conjuntos, state='readonly')
+        self.combo_conjunto2.grid(row=2, column=1, padx=10, pady=10, sticky='ew')
+        if len(letras_conjuntos) > 1:
+            self.combo_conjunto2.current(1)
+        elif letras_conjuntos:
+            self.combo_conjunto2.current(0)
 
-        ttk.Label(top_operacion, text="Operación:", style='TLabel').pack(pady=5)
-        combo_operacion = tk.StringVar(top_operacion)
-        combo_operacion.set(operaciones[0])
-        opciones_operacion = ttk.OptionMenu(top_operacion, combo_operacion, *operaciones, command=self._actualizar_interfaz_operacion)
-        opciones_operacion.pack(pady=5, padx=10, fill='x')
-        self.combo_operacion = combo_operacion # Guardar referencia
+        # Llamar a la función inicialmente para establecer el estado correcto al abrir la ventana
+        self.actualizar_segundo_combo()
 
-        self.frame_conjunto2 = ttk.Frame(top_operacion, style='TFrame') # Frame para el Conjunto 2
-        self.frame_conjunto2.pack(pady=5, fill='x')
-        ttk.Label(self.frame_conjunto2, text="Conjunto 2:", style='TLabel').pack(side='left', padx=5)
-        combo_conjunto2 = tk.StringVar(self.frame_conjunto2)
-        combo_conjunto2.set(letras_conjuntos[1] if len(letras_conjuntos) > 1 else (letras_conjuntos[0] if letras_conjuntos else ""))
-        opciones_conjunto2 = ttk.OptionMenu(self.frame_conjunto2, combo_conjunto2, *letras_conjuntos)
-        opciones_conjunto2.pack(side='left', padx=5, fill='x', expand=True)
-        self.combo_conjunto2 = combo_conjunto2 # Guardar referencia
+        btn_realizar = ttk.Button(self.top_operacion, text="Realizar Operación y Graficar", command=self._graficar_operacion)
+        btn_realizar.grid(row=3, column=0, columnspan=2, padx=10, pady=20, sticky='ew')
 
-        btn_graficar_operacion = ttk.Button(top_operacion, text="Graficar Operación", command=self._graficar_operacion)
-        btn_graficar_operacion.pack(pady=10, padx=20, fill='x')
+        self.root.wait_window(self.top_operacion)
 
-        self._actualizar_interfaz_operacion(operaciones[0]) # Inicializar la interfaz
+    def actualizar_segundo_combo(self, event=None):
+        operacion = self.combo_operacion.get()
+        letras_conjuntos = sorted(self.conjuntos.keys())
+        if operacion == "Complemento":
+            self.label_conjunto2.config(state=tk.DISABLED)
+            self.combo_conjunto2.config(state=tk.DISABLED)
+        else:
+            self.label_conjunto2.config(state=tk.NORMAL)
+            self.combo_conjunto2.config(state='readonly')
+            self.combo_conjunto2['values'] = letras_conjuntos
+            if len(letras_conjuntos) > 1 and self.combo_conjunto1.get() == self.combo_conjunto2.get():
+                # Asegurarse de que el segundo combo no tenga la misma selección que el primero inicialmente
+                index_primer_conjunto = letras_conjuntos.index(self.combo_conjunto1.get())
+                nuevo_index_segundo = (index_primer_conjunto + 1) % len(letras_conjuntos)
+                self.combo_conjunto2.current(nuevo_index_segundo)
+            elif letras_conjuntos and not self.combo_conjunto2.get():
+                self.combo_conjunto2.current(0)
 
     def _actualizar_interfaz_operacion(self, operacion):
         if operacion == "Complemento":
@@ -423,8 +510,8 @@ class Menu:
         elif operacion_seleccionada == "Diferencia Simétrica":
             resultado = conjuntoA.symmetric_difference(conjuntoB)
         elif operacion_seleccionada == "Complemento":
-            if not self.universo:
-                messagebox.showerror("Error", "Por favor, ingrese el Conjunto Universo primero.")
+            if not self.conjuntos:
+                messagebox.showerror("Error", "Por favor, ingrese conjuntos primero para realizar el complemento.")
                 return
             resultado = set(self.universo) - conjuntoA
             conjuntoB_letra = "" # No se usa para el complemento
@@ -444,93 +531,100 @@ class Menu:
         ax_operacion.set_xlim(-2, 2)
         ax_operacion.set_ylim(-2, 2)
 
-        # Dibujar el universo para el complemento
         if operacion_seleccionada == "Complemento":
+            # Dibujar el universo
             rect_universo = patches.Rectangle((-2, -2), 4, 4, linewidth=1, edgecolor='black', facecolor='#EEEEEE', label='Universo')
             ax_operacion.add_patch(rect_universo)
-            complemento_elementos = sorted(list(resultado))
-            # Ajustar el tamaño de la fuente y el bbox
-            ax_operacion.text(0, -1.5, f"Universo - {conjunto1_letra}: {', '.join(complemento_elementos)}", ha='center', fontsize=8, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
+            # Definir la máscara para el círculo del conjunto A
+            resolution = 500
+            x_grid, y_grid = np.meshgrid(np.linspace(-2, 2, resolution), np.linspace(-2, 2, resolution))
+            mask_circulo_a = (x_grid)**2 + (y_grid)**2 <= 1
+            # Sombrear el área del complemento (Universo - Conjunto A)
+            mask_complemento = (x_grid >= -2) & (x_grid <= 2) & (y_grid >= -2) & (y_grid <= 2) & ~mask_circulo_a
+            ax_operacion.contourf(x_grid, y_grid, mask_complemento, levels=[0.5, 1], colors='none', hatches=['|||'], alpha=0.4)
+            # Centrar el círculo para el conjunto A
+            circulo_complemento = plt.Circle((0, 0), 1, color='lightblue', alpha=0.6, edgecolor='black')
+            ax_operacion.add_artist(circulo_complemento)
+            elementos_a_texto = ", ".join(sorted(list(conjuntoA)))
+            fontsize_a = 12 if len(conjuntoA) < 8 else 8
+            ax_operacion.text(0, 0, f"{conjunto1_letra} = {{{elementos_a_texto}}}", ha='center', va='center', fontsize=fontsize_a, color='black', bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
+            # Mostrar el complemento fuera del círculo
+            complemento_elementos = sorted(list(set(self.universo) - conjuntoA))
+            if complemento_elementos:
+                complemento_texto = ", ".join(complemento_elementos)
+                fontsize_complemento = 10 if len(complemento_elementos) < 12 else 7
+                ax_operacion.text(0, -1.5, f"Complemento de {conjunto1_letra}: {{{complemento_texto}}}", ha='center', fontsize=fontsize_complemento, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
+        else:
+            # Dibujar los dos círculos para las otras operaciones
+            circle1 = plt.Circle((-0.5, 0), 1, color='red', alpha=0.4, label=conjunto1_letra)
+            circle2 = plt.Circle((0.5, 0), 1, color='blue', alpha=0.4, label=conjunto2_letra)
+            ax_operacion.add_artist(circle1)
+            ax_operacion.add_artist(circle2)
+            ax_operacion.legend(loc='upper right')
 
-        # Dibujar los dos círculos
-        circle1 = plt.Circle((-0.5, 0), 1, color='red', alpha=0.4, label=conjunto1_letra)
-        circle2 = plt.Circle((0.5, 0), 1, color='blue', alpha=0.4, label=conjunto2_letra)
-        ax_operacion.add_artist(circle1)
-        ax_operacion.add_artist(circle2)
-        ax_operacion.legend(loc='upper right')
+            # Calcular las regiones para mostrar elementos
+            solo_A = sorted(list(conjuntoA - conjuntoB))
+            solo_B = sorted(list(conjuntoB - conjuntoA))
+            interseccion = sorted(list(conjuntoA.intersection(conjuntoB)))
 
-        # Calcular las regiones para mostrar elementos
-        solo_A = sorted(list(conjuntoA - conjuntoB))
-        solo_B = sorted(list(conjuntoB - conjuntoA))
-        interseccion = sorted(list(conjuntoA.intersection(conjuntoB)))
-
-        # Función para ajustar el texto dentro de un área
-        def ajustar_texto(ax, texto, x, y, max_width=0.3, max_lines=2, fontsize=8, **kwargs):
-            words = texto.split(', ')
-            lines = []
-            current_line = []
-            for word in words:
-                test_line = current_line + [word]
-                text_obj = ax.text(x, y, ', '.join(test_line), fontsize=fontsize, ha='center', va='center', **kwargs)
-                bbox = text_obj.get_window_extent(renderer=ax.figure.canvas.get_renderer())
-                bbox_width_norm = bbox.width / fig_operacion.dpi / (ax.get_xlim()[1] - ax.get_xlim()[0])
-                text_obj.remove() # Eliminar el objeto de texto de prueba
-                if bbox_width_norm > max_width and current_line:
+            def ajustar_texto(ax, texto, x, y, max_width=0.3, max_lines=2, fontsize=8, **kwargs):
+                words = texto.split(', ')
+                lines = []
+                current_line = []
+                for word in words:
+                    test_line = current_line + [word]
+                    text_obj = ax.text(x, y, ', '.join(test_line), fontsize=fontsize, ha='center', va='center', **kwargs)
+                    bbox = text_obj.get_window_extent(renderer=ax.figure.canvas.get_renderer())
+                    bbox_width_norm = bbox.width / fig_operacion.dpi / (ax.get_xlim()[1] - ax.get_xlim()[0])
+                    text_obj.remove()
+                    if bbox_width_norm > max_width and current_line:
+                        lines.append(', '.join(current_line))
+                        current_line = [word]
+                    else:
+                        current_line.append(word)
+                if current_line:
                     lines.append(', '.join(current_line))
-                    current_line = [word]
-                else:
-                    current_line.append(word)
-            if current_line:
-                lines.append(', '.join(current_line))
 
-            y_offset = 0
-            for line in lines[:max_lines]:
-                text_obj = ax.text(x, y + y_offset, line, fontsize=fontsize, ha='center', va='center', **kwargs)
-                y_offset -= 0.15 # Ajustar el espaciado entre líneas
-            if len(lines) > max_lines:
-                ax.text(x, y + y_offset - 0.15, "...", fontsize=fontsize, ha='center', va='center', **kwargs)
+                y_offset = 0
+                for line in lines[:max_lines]:
+                    text_obj = ax.text(x, y + y_offset, line, fontsize=fontsize, ha='center', va='center', **kwargs)
+                    y_offset -= 0.15
+                if len(lines) > max_lines:
+                    ax.text(x, y + y_offset - 0.15, "...", fontsize=fontsize, ha='center', va='center', **kwargs)
 
+            ajustar_texto(ax_operacion, ", ".join(solo_A), -0.8, 0.1, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
+            ajustar_texto(ax_operacion, ", ".join(solo_B), 0.8, 0.1, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
+            ajustar_texto(ax_operacion, ", ".join(interseccion), 0, -0.3, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
 
-        # Posicionar el texto de los elementos con ajuste
-        ajustar_texto(ax_operacion, ", ".join(solo_A), -0.8, 0.1, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
-        ajustar_texto(ax_operacion, ", ".join(solo_B), 0.8, 0.1, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
-        ajustar_texto(ax_operacion, ", ".join(interseccion), 0, -0.3, bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.3'))
+            resolution = 500
+            x_grid, y_grid = np.meshgrid(np.linspace(-2, 2, resolution), np.linspace(-2, 2, resolution))
+            mask_circle1 = (x_grid + 0.5)**2 + y_grid**2 <= 1
+            mask_circle2 = (x_grid - 0.5)**2 + y_grid**2 <= 1
 
-        # Sombreado de las áreas según la operación
-        resolution = 500
-        x_grid, y_grid = np.meshgrid(np.linspace(-2, 2, resolution), np.linspace(-2, 2, resolution))
+            alpha_sombreado = 0.4
 
-        mask_circle1 = (x_grid + 0.5)**2 + y_grid**2 <= 1
-        mask_circle2 = (x_grid - 0.5)**2 + y_grid**2 <= 1
-        mask_universo = (x_grid >= -2) & (x_grid <= 2) & (y_grid >= -2) & (y_grid <= 2)
-
-        alpha_sombreado = 0.4
-
-        if operacion_seleccionada == "Unión":
-            mask_resultado = mask_circle1 | mask_circle2
-            ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['///'], alpha=alpha_sombreado)
-        elif operacion_seleccionada == "Intersección":
-            mask_resultado = mask_circle1 & mask_circle2
-            ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['\\\\\\'], alpha=alpha_sombreado)
-        elif operacion_seleccionada == "Diferencia (A-B)":
-            mask_resultado = mask_circle1 & ~mask_circle2
-            ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['...'], alpha=alpha_sombreado)
-        elif operacion_seleccionada == "Diferencia (B-A)":
-            mask_resultado = ~mask_circle1 & mask_circle2
-            ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['xx'], alpha=alpha_sombreado)
-        elif operacion_seleccionada == "Diferencia Simétrica":
-            mask_resultado = (mask_circle1 & ~mask_circle2) | (~mask_circle1 & mask_circle2)
-            ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['oo'], alpha=alpha_sombreado)
-        elif operacion_seleccionada == "Complemento":
-            mask_resultado = mask_universo & ~mask_circle1
-            ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['|||'], alpha=alpha_sombreado)
+            if operacion_seleccionada == "Unión":
+                mask_resultado = mask_circle1 | mask_circle2
+                ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['///'], alpha=alpha_sombreado)
+            elif operacion_seleccionada == "Intersección":
+                mask_resultado = mask_circle1 & mask_circle2
+                ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['\\\\\\'], alpha=alpha_sombreado)
+            elif operacion_seleccionada == "Diferencia (A-B)":
+                mask_resultado = mask_circle1 & ~mask_circle2
+                ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['...'], alpha=alpha_sombreado)
+            elif operacion_seleccionada == "Diferencia (B-A)":
+                mask_resultado = ~mask_circle1 & mask_circle2
+                ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['xx'], alpha=alpha_sombreado)
+            elif operacion_seleccionada == "Diferencia Simétrica":
+                mask_resultado = (mask_circle1 & ~mask_circle2) | (~mask_circle1 & mask_circle2)
+                ax_operacion.contourf(x_grid, y_grid, mask_resultado, levels=[0.5, 1], colors='none', hatches=['oo'], alpha=alpha_sombreado)
 
         canvas_operacion = FigureCanvasTkAgg(fig_operacion, master=ventana_resultado)
         canvas_operacion_widget = canvas_operacion.get_tk_widget()
         canvas_operacion_widget.pack(expand=True, fill='both')
         canvas_operacion.draw()
 
-        ttk.Button(ventana_resultado, text="Cerrar", command=ventana_resultado.destroy, style='TButton').pack(pady=10)    
+        ttk.Button(ventana_resultado, text="Cerrar", command=ventana_resultado.destroy, style='TButton').pack(pady=10)
 
     def open_edit_window(self):
         if not self.conjuntos:
@@ -538,49 +632,168 @@ class Menu:
             return
 
         self.top_editar = tk.Toplevel(self.root, bg='#2E3440')
-        self.top_editar.title("Editar Conjuntos y Universo")
+        self.top_editar.title("Editar Conjuntos")
+        self.top_editar.geometry("800x600")
 
-        # --- Sección para editar el Universo ---
-        frame_universo = ttk.Frame(self.top_editar)
-        frame_universo.pack(pady=10, padx=10, fill='x')
-        ttk.Label(frame_universo, text="Conjunto Universo = {", style='TLabel').pack(side='left')
+        self.frame_principal_editar = ttk.Frame(self.top_editar)
+        self.frame_principal_editar.pack(pady=5, padx=10, fill='both', expand=True)
+        self.canvas_editar = tk.Canvas(self.frame_principal_editar, bg='#2E3440', highlightthickness=0)
+        self.scrollbar_editar = ttk.Scrollbar(self.frame_principal_editar, orient=tk.VERTICAL, command=self.canvas_editar.yview)
+        self.scrollable_frame_editar = ttk.Frame(self.canvas_editar, style='TFrame')
+
+        self.canvas_editar.configure(yscrollcommand=self.scrollbar_editar.set)
+        self.scrollable_frame_editar.bind("<Configure>", lambda e: self.canvas_editar.configure(scrollregion=self.canvas_editar.bbox("all")))
+        self.canvas_editar.create_window((0, 0), window=self.scrollable_frame_editar, anchor="nw", width=780)
+
+        self.scrollbar_editar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas_editar.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        frame_universo_editar = ttk.Frame(self.scrollable_frame_editar)
+        frame_universo_editar.pack(pady=10, padx=10, fill='x')
+        ttk.Label(frame_universo_editar, text="Conjunto Universo = {", style='TLabel').pack(side='left')
         universo_str = ", ".join(sorted(list(self.universo)))
         self.universo_var_editar = tk.StringVar(value=universo_str)
-        entry_universo_editar = ttk.Entry(frame_universo, textvariable=self.universo_var_editar, width=50)
+        entry_universo_editar = ttk.Entry(frame_universo_editar, textvariable=self.universo_var_editar, width=50, state=tk.DISABLED)
         entry_universo_editar.pack(side='left', expand=True)
-        ttk.Label(frame_universo, text="}", style='TLabel').pack(side='left')
-        entry_universo_editar.bind("<FocusOut>", self._ordenar_elementos_universo_editar)
-        entry_universo_editar.bind("<Return>", self._ordenar_elementos_universo_editar)
+        ttk.Label(frame_universo_editar, text="}", style='TLabel').pack(side='left')
 
         self.entry_editar_vars = {}
         self.entry_editar = {}
+        self.botones_eliminar_editar = {}
+        self.btn_guardar_ediciones = None
 
         available_letters = sorted(list(self.conjuntos.keys()))
+        self.cantidad_conjuntos_editar = tk.IntVar(value=len(self.conjuntos))
 
         for letra in available_letters:
-            frame_conjunto = ttk.Frame(self.top_editar)
+            self._agregar_campo_editar(letra=letra, elementos=self.conjuntos[letra])
+
+        frame_botones_editar = ttk.Frame(self.top_editar, style='TFrame')
+        frame_botones_editar.pack(pady=10)
+
+        self.btn_agregar_editar = ttk.Button(frame_botones_editar, text="Agregar Conjunto", command=self._agregar_campo_editar)
+        self.btn_agregar_editar.pack(side=tk.LEFT, padx=5)
+
+        self.btn_guardar_ediciones = ttk.Button(frame_botones_editar, text="Guardar Ediciones", command=self._guardar_ediciones)
+        self.btn_guardar_ediciones.pack(side=tk.RIGHT, padx=5)
+
+        self._validar_boton_guardar_editar() # Llamar SOLO al final de open_edit_window
+
+    def _agregar_campo_editar(self, letra=None, elementos=None):
+        cantidad_actual = self.cantidad_conjuntos_editar.get()
+        if cantidad_actual < 10:
+            frame_conjunto = ttk.Frame(self.scrollable_frame_editar)
             frame_conjunto.pack(pady=5, padx=10, fill='x')
 
-            ttk.Label(frame_conjunto, text=f"Conjunto {letra} = {{", width=10, anchor='w', style='TLabel').pack(side='left')
+            letra_var = tk.StringVar(value=letra if letra else self._obtener_letra_disponible_editar())
 
-            elementos_str = ", ".join(sorted(list(self.conjuntos[letra])))
+            combo_letras = ttk.Combobox(frame_conjunto, textvariable=letra_var, values=sorted(self.available_letters), width=3)
+            combo_letras.pack(side='left')
+            combo_letras.bind("<<ComboboxSelected>>", self._validar_letras_duplicadas_editar)
+            combo_letras.bind("<FocusOut>", self._validar_letras_duplicadas_editar)
+            combo_letras.bind("<KeyRelease>", self._validar_letras_duplicadas_editar)
+
+            ttk.Label(frame_conjunto, text=" = {", width=4, anchor='w', style='TLabel').pack(side='left')
+
+            elementos_str = ", ".join(sorted(elementos)) if elementos else ""
             var = tk.StringVar(value=elementos_str)
             entry = ttk.Entry(frame_conjunto, textvariable=var, width=40)
             entry.pack(side='left', expand=True)
-            entry.bind("<FocusOut>", lambda event, l=letra: self._validar_elementos_en_universo_editar(event, l))
             entry.bind("<FocusOut>", self._ordenar_elementos_editar)
             entry.bind("<Return>", self._ordenar_elementos_editar)
-            entry.bind("<Return>", lambda event, l=letra: self._validar_elementos_en_universo_editar(event, l))
-            entry.bind("<FocusOut>", lambda event, l=letra: self._validar_cantidad_elementos_editar(event, l))
-            entry.bind("<Return>", lambda event, l=letra: self._validar_cantidad_elementos_editar(event, l))
+            entry.bind("<FocusOut>", lambda event, l=letra_var.get(): self._validar_cantidad_elementos_editar(event, l))
+            entry.bind("<Return>", lambda event, l=letra_var.get(): self._validar_cantidad_elementos_editar(event, l))
 
             ttk.Label(frame_conjunto, text="}", style='TLabel').pack(side='left')
 
-            self.entry_editar_vars[letra] = var
-            self.entry_editar[letra] = entry
+            btn_eliminar_editar = ttk.Button(frame_conjunto, text="Eliminar", command=lambda f=frame_conjunto: self._eliminar_campo_editar(f, letra_var.get()))
+            btn_eliminar_editar.pack(side=tk.LEFT, padx=5)
+            self.botones_eliminar_editar[frame_conjunto] = btn_eliminar_editar
 
-        btn_guardar_ediciones = ttk.Button(self.top_editar, text="Guardar Ediciones", command=self._guardar_ediciones)
-        btn_guardar_ediciones.pack(pady=10)
+            self.entry_editar_vars[frame_conjunto] = (letra_var, var, combo_letras)
+            self.entry_editar[letra_var.get()] = entry
+            self.cantidad_conjuntos_editar.set(self.cantidad_conjuntos_editar.get() + 1)
+            self._actualizar_letras_disponibles_editar()
+            # self._validar_boton_guardar_editar() <--- ELIMINADO DE AQUÍ
+
+    def _eliminar_campo_editar(self, frame_a_eliminar, letra_eliminada):
+        cantidad_actual = self.cantidad_conjuntos_editar.get()
+        if cantidad_actual > 2:
+            if frame_a_eliminar in self.entry_editar_vars:
+                del self.entry_editar_vars[frame_a_eliminar]
+            if letra_eliminada in self.entry_editar:
+                del self.entry_editar[letra_eliminada]
+            if frame_a_eliminar in self.botones_eliminar_editar:
+                self.botones_eliminar_editar.pop(frame_a_eliminar).destroy()
+            frame_a_eliminar.destroy()
+            self.cantidad_conjuntos_editar.set(self.cantidad_conjuntos_editar.get() - 1)
+            self._actualizar_letras_disponibles_editar(letra_eliminada)
+            self._validar_letras_duplicadas_editar()
+
+    def _obtener_letra_disponible_editar(self):
+        used_letters = set(self.entry_editar_vars.keys())
+        for letter in self.available_letters:
+            if letter not in used_letters:
+                return letter
+        return "" # No hay letras disponibles
+
+    def _actualizar_letras_disponibles_editar(self, letra_eliminada=None):
+        used_letters = set([data[0].get() for frame, data in self.entry_editar_vars.items()])
+        for frame, (letra_var, var, combo) in self.entry_editar_vars.items():
+            current_letter = letra_var.get()
+            new_values = sorted([letter for letter in self.available_letters if letter not in used_letters or letter == current_letter or letter == letra_eliminada])
+            combo['values'] = new_values
+            if current_letter not in new_values:
+                letra_var.set(new_values[0] if new_values else "")
+
+    def _validar_letras_duplicadas_editar(self, event=None):
+        letras = [data[0].get().strip() for data in self.entry_editar_vars.values()]
+        letras_validas = [l for l in letras if l]
+        hay_duplicados = len(letras_validas) != len(set(letras_validas))
+        self._validar_boton_guardar_editar(hay_duplicados)
+        return hay_duplicados
+
+    def _validar_boton_guardar_editar(self, hay_duplicados=False):
+        num_conjuntos = self.cantidad_conjuntos_editar.get()
+        letras = [data[0].get().strip() for data in self.entry_editar_vars.values()]
+        letras_validas = [l for l in letras if l]
+        cantidad_valida = 2 <= num_conjuntos <= 10
+
+        if cantidad_valida and not hay_duplicados and all(letras_validas):
+            # Buscar si todas las letras son diferentes de las originales (si se está editando)
+            letras_originales = set(self.conjuntos.keys())
+            letras_actuales = set(letras_validas)
+            if letras_originales == letras_actuales:
+                self.btn_guardar_ediciones.config(state=tk.NORMAL) # Habilitar si no hay cambios en las letras
+            elif letras_actuales.issuperset(letras_originales) and len(letras_actuales) == len(letras_originales):
+                 self.btn_guardar_ediciones.config(state=tk.NORMAL) # Habilitar si solo se modificaron elementos
+            else:
+                self.btn_guardar_ediciones.config(state=tk.NORMAL) # Habilitar si las letras son válidas y diferentes
+        else:
+            self.btn_guardar_ediciones.config(state=tk.DISABLED)
+
+    def _validar_cantidad_conjuntos_editar(self):
+        cantidad = self.cantidad_conjuntos_editar.get()
+        if not 2 <= cantidad <= 10:
+            tk.messagebox.showerror("Error", f"La cantidad de conjuntos debe estar entre 2 y 10 (actualmente: {cantidad}).")
+            return False
+        return True
+
+    def _ordenar_elementos_editar(self, event):
+        entry = event.widget
+        elements_str = entry.get()
+        elements_list = [elem.strip() for elem in elements_str.split(',') if elem.strip()]
+        elements_unicos_ordenados = sorted(list(set(elements_list)))
+        entry.delete(0, tk.END)
+        entry.insert(0, ", ".join(elements_unicos_ordenados))
+
+    def _validar_cantidad_elementos_editar(self, event, letra):
+        entry_var = self.entry_editar_vars[letra]
+        elementos = [elem.strip() for elem in entry_var.get().split(',') if elem.strip()]
+        if len(set(elementos)) > 15:
+            tk.messagebox.showerror("Error", f"El Conjunto {letra} excede el máximo de 15 elementos.")
+
+    # ... (Asegúrate de que tu método _guardar_ediciones esté actualizado para no usar el universo de la edición)
 
     def _ordenar_elementos_universo_editar(self, event):
         entry_widget = event.widget
@@ -646,34 +859,33 @@ class Menu:
     def _guardar_ediciones(self):
         nuevos_conjuntos = {}
         errores = {}
-        universo_str = self.universo_var_editar.get()
-        self.universo = set([elem.strip() for elem in universo_str.split(',') if elem.strip()])
 
-        for letra, var in self.entry_editar_vars.items():
-            elementos_str = var.get()
+        for frame, data in self.entry_editar_vars.items():
+            letra_var, entry_var, _ = data
+            letra = letra_var.get().strip()
+            elementos_str = entry_var.get()
             elementos_lista = [elem.strip() for elem in elementos_str.split(',') if elem.strip()]
             elementos_unicos = set(elementos_lista)
 
-            # Validar cantidad máxima de elementos
             if len(elementos_unicos) > 15:
-                errores[letra] = f"El Conjunto {letra} excede el máximo de 15 elementos ({len(elementos_unicos)})."
-
-            # Validar elementos dentro del universo
-            elementos_invalidos = elementos_unicos - self.universo
-            if elementos_invalidos:
                 if letra not in errores:
                     errores[letra] = ""
-                errores[letra] += f" Contiene elementos no presentes en el Universo: {', '.join(sorted(list(elementos_invalidos)))}."
-                errores[letra] = errores[letra].lstrip()
+                errores[letra] += f" El Conjunto {letra} excede el máximo de 15 elementos ({len(elementos_unicos)})."
 
             if len(elementos_lista) != len(elementos_unicos) and elementos_lista:
                 duplicados = [elem for elem in elementos_lista if elementos_lista.count(elem) > 1]
                 if letra not in errores:
                     errores[letra] = ""
-                errores[letra] += f" Se encontraron duplicados: {', '.join(sorted(list(set(duplicados))))}."
+                errores[letra] += f" Se encontraron duplicados en el Conjunto {letra}: {', '.join(sorted(list(set(duplicados))))}."
                 errores[letra] = errores[letra].lstrip()
 
             nuevos_conjuntos[letra] = sorted(list(elementos_unicos))
+
+        if not self._validar_cantidad_conjuntos_editar():
+            return
+
+        if self._validar_letras_duplicadas_editar():
+            return
 
         if errores:
             mensaje_error = "Se encontraron los siguientes errores:\n"
@@ -682,4 +894,12 @@ class Menu:
             tk.messagebox.showerror("Errores en la Edición", mensaje_error)
         else:
             self.conjuntos = nuevos_conjuntos
-            self.top_editar.destroy() # Usar el atributo de la clase
+            # --- Lógica para actualizar el universo ---
+            todos_los_elementos = set()
+            for conjunto in self.conjuntos.values():
+                todos_los_elementos.update(conjunto)
+            self.universo = sorted(list(todos_los_elementos))
+            print(f"Universo automático después de editar: {self.universo}")
+            # --- Fin de la lógica de actualización del universo ---
+            if self.top_editar:
+                self.top_editar.destroy()
